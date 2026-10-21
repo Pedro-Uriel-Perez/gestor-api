@@ -1,0 +1,61 @@
+# Configuración de Jenkins como código (plugin configuration-as-code)
+jenkins:
+  systemMessage: "Jenkins del Gestor de Proyectos: compila los microservicios con JDK 21 y Maven 3.9.11"
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+# Manage Jenkins > Tools
+tool:
+  jdk:
+    installations:
+      - name: "jdk-21"
+        home: "/opt/java/openjdk"       # JDK 21 incluido en la imagen jenkins/jenkins:lts-jdk21
+  maven:
+    installations:
+      - name: "maven-3.9"
+        home: "/opt/maven"              # Maven 3.9.11 instalado en el Dockerfile
+
+unclassified:
+  location:
+    url: "http://localhost:8090/"
+
+# Un pipeline por microservicio; cada uno usa el Jenkinsfile de su repositorio
+jobs:
+  - script: >
+      pipelineJob('gestor-api') {
+        description('API REST (Java 21 / Spring Boot 3) - https://github.com/Pedro-Uriel-Perez/gestor-api')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('https://github.com/Pedro-Uriel-Perez/gestor-api.git') }
+                branch('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+          }
+        }
+      }
+  - script: >
+      pipelineJob('gestor-frontend') {
+        description('Frontend web (Java 21 / Spring Boot 3) - https://github.com/Pedro-Uriel-Perez/gestor-frontend')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('https://github.com/Pedro-Uriel-Perez/gestor-frontend.git') }
+                branch('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+          }
+        }
+      }

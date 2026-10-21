@@ -5,16 +5,17 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.7.17</version>
+		<version>3.5.16</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.mx.cbtis</groupId>
 	<artifactId>Ejercicio5MyAPIGestor</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.0.2-SNAPSHOT</version>
 	<name>Ejercicio5MyAPIGestor</name>
-	<description>Proyecto My API Rest</description>
+	<description>Proyecto My API Rest (Java 21 / Spring Boot 3)</description>
 	<properties>
-		<java.version>11</java.version>
+		<java.version>21</java.version>
+		<jacoco.version>0.8.12</jacoco.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -50,11 +51,36 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
+			<!-- Falla la compilación si no se usa JDK 21 o un Maven compatible (local y en Jenkins) -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>verificar-java-21</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<requireJavaVersion>
+									<version>[21,)</version>
+									<message>Este microservicio requiere JDK 21 o superior.</message>
+								</requireJavaVersion>
+								<requireMavenVersion>
+									<version>[3.9.0,)</version>
+									<message>Se requiere Maven 3.9 o superior para compilar con Java 21.</message>
+								</requireMavenVersion>
+							</rules>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<!-- Reporte de cobertura: target/site/jacoco/index.html (se genera con mvnw test) -->
 			<plugin>
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
-				<version>0.8.12</version>
+				<version>${jacoco.version}</version>
 				<executions>
 					<execution>
 						<goals>

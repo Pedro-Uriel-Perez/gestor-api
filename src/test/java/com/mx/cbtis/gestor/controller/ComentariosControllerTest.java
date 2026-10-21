@@ -17,7 +17,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -32,7 +32,7 @@ class ComentariosControllerTest {
 	@Autowired
 	MockMvc mvc;
 
-	@MockBean
+	@MockitoBean
 	ComentariosRepository comentariostable;
 
 	private final Comentarios c1 = new Comentarios(201, "Perla Joceline Martínez Meza", 199, "Subirlo YA!!!", "2024-06-26 13:48:00");

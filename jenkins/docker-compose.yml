@@ -1,0 +1,32 @@
+# Levantar:   docker compose up -d --build      (desde la carpeta jenkins/)
+# Abrir:      http://localhost:8090   usuario: admin   contraseña: admin123
+services:
+  jenkins:
+    build: .
+    container_name: jenkins-gestor
+    ports:
+      - "8090:8080"       # el 8080 de Windows está ocupado
+      - "50000:50000"
+    environment:
+      JENKINS_ADMIN_ID: admin
+      JENKINS_ADMIN_PASSWORD: admin123
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - ./casc.yaml:/var/jenkins_home/casc.yaml:ro
+    depends_on:
+      - postgres-ci
+
+  # Base de datos para las pruebas de la API dentro de Jenkins (se carga con los scripts del repo)
+  postgres-ci:
+    image: postgres:18
+    container_name: postgres-ci
+    environment:
+      POSTGRES_DB: dbgestor
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - ../sql/postgres/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+      - ../sql/postgres/02_data.sql:/docker-entrypoint-initdb.d/02_data.sql:ro
+
+volumes:
+  jenkins_home:

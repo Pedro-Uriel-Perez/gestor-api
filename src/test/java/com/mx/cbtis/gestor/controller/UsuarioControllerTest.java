@@ -18,7 +18,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,7 +33,7 @@ class UsuarioControllerTest {
 	@Autowired
 	MockMvc mvc;
 
-	@MockBean
+	@MockitoBean
 	UsuarioRepository usuariotable;
 
 	private final Usuario perla = new Usuario(196, "Perla Joceline Martínez Meza",
