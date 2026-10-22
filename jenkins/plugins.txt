@@ -6,3 +6,6 @@ git
 junit
 jacoco
 timestamper
+credentials
+plain-credentials
+sonar

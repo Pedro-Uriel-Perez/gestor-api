@@ -1,5 +1,7 @@
 # Levantar:   docker compose up -d --build      (desde la carpeta jenkins/)
-# Abrir:      http://localhost:8090   usuario: admin   contraseña: admin123
+# Jenkins:    http://localhost:8090   usuario: admin   contraseña: admin123
+# SonarQube:  http://localhost:9000   usuario: admin   (la contraseña se cambia en el primer inicio)
+# El token de SonarQube para Jenkins va en el archivo .env (SONAR_TOKEN=...), que no se sube a GitHub.
 services:
   jenkins:
     build: .
@@ -10,11 +12,13 @@ services:
     environment:
       JENKINS_ADMIN_ID: admin
       JENKINS_ADMIN_PASSWORD: admin123
+      SONAR_TOKEN: ${SONAR_TOKEN:-}
     volumes:
       - jenkins_home:/var/jenkins_home
       - ./casc.yaml:/var/jenkins_home/casc.yaml:ro
     depends_on:
       - postgres-ci
+      - sonarqube
 
   # Base de datos para las pruebas de la API dentro de Jenkins (se carga con los scripts del repo)
   postgres-ci:
@@ -28,5 +32,20 @@ services:
       - ../sql/postgres/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ../sql/postgres/02_data.sql:/docker-entrypoint-initdb.d/02_data.sql:ro
 
+  # Servidor de análisis de calidad. Jenkins le envía el análisis (mvn sonar:sonar) y
+  # SonarQube le responde el resultado del Quality Gate por webhook.
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+
 volumes:
   jenkins_home:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:

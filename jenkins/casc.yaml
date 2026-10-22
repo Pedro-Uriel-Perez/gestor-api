@@ -23,9 +23,27 @@ tool:
       - name: "maven-3.9"
         home: "/opt/maven"              # Maven 3.9.11 instalado en el Dockerfile
 
+# Manage Jenkins > Credentials: token de SonarQube (llega desde el archivo .env, no se sube a GitHub)
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - string:
+              scope: GLOBAL
+              id: "sonar-token"
+              description: "Token de SonarQube para Jenkins"
+              secret: "${SONAR_TOKEN}"
+
 unclassified:
   location:
     url: "http://localhost:8090/"
+  # Manage Jenkins > System > SonarQube servers (el nombre se usa en withSonarQubeEnv('SonarQube'))
+  sonarGlobalConfiguration:
+    buildWrapperEnabled: true
+    installations:
+      - name: "SonarQube"
+        serverUrl: "http://sonarqube:9000"
+        credentialsId: "sonar-token"
 
 # Un pipeline por microservicio; cada uno usa el Jenkinsfile de su repositorio
 jobs:

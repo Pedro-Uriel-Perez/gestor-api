@@ -41,6 +41,22 @@ pipeline {
                 }
             }
         }
+        stage('SonarQube Analysis') {
+            steps {
+                // 'SonarQube' es el nombre del servidor en Manage Jenkins > System > SonarQube servers
+                withSonarQubeEnv('SonarQube') {
+                    sh 'mvn -B sonar:sonar'
+                }
+            }
+        }
+        stage('Quality Gate') {
+            steps {
+                // SonarQube responde por webhook (http://jenkins-gestor:8080/sonarqube-webhook/)
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
         stage('Empaquetar') {
             steps {
                 sh 'mvn -B package -DskipTests'
