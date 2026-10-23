@@ -1,4 +1,5 @@
-// Pipeline de la API REST: compila, prueba y empaqueta con JDK 21 y Maven 3.9 configurados en Jenkins
+// Pipeline BACKEND (API REST): compila, prueba (JUnit + JaCoCo) y empaqueta con JDK 21 y Maven 3.9.
+// El análisis con SonarQube y el escaneo de vulnerabilidades están en el pipeline gestor-calidad.
 pipeline {
     agent any
 
@@ -38,22 +39,6 @@ pipeline {
                 always {
                     junit 'target/surefire-reports/*.xml'
                     jacoco execPattern: 'target/jacoco.exec', classPattern: 'target/classes', sourcePattern: 'src/main/java'
-                }
-            }
-        }
-        stage('SonarQube Analysis') {
-            steps {
-                // 'SonarQube' es el nombre del servidor en Manage Jenkins > System > SonarQube servers
-                withSonarQubeEnv('SonarQube') {
-                    sh 'mvn -B sonar:sonar'
-                }
-            }
-        }
-        stage('Quality Gate') {
-            steps {
-                // SonarQube responde por webhook (http://jenkins-gestor:8080/sonarqube-webhook/)
-                timeout(time: 5, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
                 }
             }
         }

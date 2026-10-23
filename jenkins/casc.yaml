@@ -45,7 +45,7 @@ unclassified:
         serverUrl: "http://sonarqube:9000"
         credentialsId: "sonar-token"
 
-# Un pipeline por microservicio; cada uno usa el Jenkinsfile de su repositorio
+# Tres pipelines: backend (gestor-api), frontend (gestor-frontend) y calidad/análisis (gestor-calidad)
 jobs:
   - script: >
       pipelineJob('gestor-api') {
@@ -74,6 +74,21 @@ jobs:
               }
             }
             scriptPath('Jenkinsfile')
+          }
+        }
+      }
+  - script: >
+      pipelineJob('gestor-calidad') {
+        description('Calidad y análisis de código de gestor-api y gestor-frontend: pruebas, JaCoCo, SonarQube, Quality Gate y Trivy')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('https://github.com/Pedro-Uriel-Perez/gestor-api.git') }
+                branch('*/main')
+              }
+            }
+            scriptPath('jenkins/calidad.Jenkinsfile')
           }
         }
       }
