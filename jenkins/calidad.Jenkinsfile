@@ -23,11 +23,18 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                dir('gestor-api') {
-                    git branch: 'main', url: 'https://github.com/Pedro-Uriel-Perez/gestor-api.git'
-                }
-                dir('gestor-frontend') {
-                    git branch: 'main', url: 'https://github.com/Pedro-Uriel-Perez/gestor-frontend.git'
+                script {
+                    // Clon superficial (solo el último commit) con reintentos: el repositorio del frontend pesa ~300 MB por sus imágenes
+                    for (repo in ['gestor-api', 'gestor-frontend']) {
+                        dir(repo) {
+                            retry(3) {
+                                checkout([$class: 'GitSCM',
+                                    branches: [[name: '*/main']],
+                                    extensions: [[$class: 'CloneOption', shallow: true, depth: 1, noTags: true, timeout: 30]],
+                                    userRemoteConfigs: [[url: "https://github.com/Pedro-Uriel-Perez/${repo}.git"]]])
+                            }
+                        }
+                    }
                 }
             }
         }
