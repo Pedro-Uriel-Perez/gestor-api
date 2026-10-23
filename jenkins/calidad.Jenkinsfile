@@ -23,19 +23,20 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                script {
-                    // Clon superficial (solo el último commit) con reintentos: el repositorio del frontend pesa ~300 MB por sus imágenes
-                    for (repo in ['gestor-api', 'gestor-frontend']) {
-                        dir(repo) {
-                            retry(3) {
-                                checkout([$class: 'GitSCM',
-                                    branches: [[name: '*/main']],
-                                    extensions: [[$class: 'CloneOption', shallow: true, depth: 1, noTags: true, timeout: 30]],
-                                    userRemoteConfigs: [[url: "https://github.com/Pedro-Uriel-Perez/${repo}.git"]]])
-                            }
-                        }
-                    }
+                // Clon parcial y superficial: solo el último commit y sin la carpeta de imágenes del frontend
+                // (gifs y videos de ~300 MB que no se necesitan para compilar, probar ni analizar el código).
+                retry(3) {
+                    sh '''
+                        rm -rf gestor-api gestor-frontend
+                        git clone --depth 1 https://github.com/Pedro-Uriel-Perez/gestor-api.git gestor-api
+                        git clone --depth 1 --filter=blob:none --no-checkout https://github.com/Pedro-Uriel-Perez/gestor-frontend.git gestor-frontend
+                        cd gestor-frontend
+                        git sparse-checkout set --no-cone '/*' '!/src/main/resources/static/Images/'
+                        git checkout main
+                        git log --oneline -1
+                    '''
                 }
+                sh 'cd gestor-api && git log --oneline -1'
             }
         }
         stage('Pruebas y cobertura') {
