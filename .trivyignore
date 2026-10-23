@@ -1,0 +1,10 @@
+# Hallazgos de Trivy revisados y aceptados (no aplican a este microservicio).
+# La corrección solo existe en Spring Framework 7.0.9 (Spring Boot 4), fuera del alcance del upgrade a Java 21.
+
+# Spring MVC: ejecución remota de código mediante XsltView.
+# No aplica: la aplicación no usa XsltView ni vistas XSLT (la API responde JSON y el frontend usa Thymeleaf).
+CVE-2026-47884
+
+# Spring MVC/WebFlux: corrupción del flujo en Server-Sent Events con fragmentos de vista.
+# No aplica: la aplicación no usa SseEmitter, Server-Sent Events ni renderizado de fragmentos de vista.
+CVE-2026-47890
