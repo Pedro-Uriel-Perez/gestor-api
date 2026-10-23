@@ -2,9 +2,7 @@ package com.mx.cbtis.gestor.controller;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,73 +10,62 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.mx.cbtis.gestor.dto.LoginDTO;
+import com.mx.cbtis.gestor.dto.UsuarioDTO;
 import com.mx.cbtis.gestor.modelo.Usuario;
 import com.mx.cbtis.gestor.repository.UsuarioRepository;
 
 @RestController
 public class UsuarioController {
-	
-	@Autowired
-	UsuarioRepository usuariotable;
-	
-	@Autowired
-	VerificadorExistencia verificador;
-	
+
+	private final UsuarioRepository usuariotable;
+	private final VerificadorExistencia verificador;
+
+	public UsuarioController(UsuarioRepository usuariotable, VerificadorExistencia verificador) {
+		this.usuariotable = usuariotable;
+		this.verificador = verificador;
+	}
+
 	@PostMapping("/getUsuarioLogin")
-	public Usuario getUsuarioLogin(@RequestBody Usuario userParam) {
-		
-		Optional<Usuario> optionaluser = usuariotable.findByCorreoPass(
-				userParam.getCorreo_electronico(),
-				userParam.getContrasena());
-		
-		Usuario user = new Usuario();
-		
-		if(optionaluser.isPresent()) {
-			user = optionaluser.get();
-		}else {
-			user.setNombre("000");
-		}
-		
-		return user;
+	public Usuario getUsuarioLogin(@RequestBody LoginDTO credenciales) {
+		return usuariotable.findByCorreoPass(credenciales.correoElectronico(), credenciales.contrasena())
+				.orElseGet(() -> {
+					// Credenciales incorrectas: el frontend espera un usuario con nombre "000"
+					Usuario noEncontrado = new Usuario();
+					noEncontrado.setNombre("000");
+					return noEncontrado;
+				});
 	}
-	
+
 	@GetMapping("/buscarUsuario")
-	public Usuario getUsuario(@RequestParam int id) {
-		
-		Usuario buscar = new Usuario();
-		Optional<Usuario> usuario = usuariotable.findById(id);
-		if(usuario.isPresent())
-		{
-			buscar = usuario.get();
-		}
-		
-		return buscar;
+	public Usuario buscar(@RequestParam int id) {
+		return usuariotable.findById(id).orElseGet(Usuario::new);
 	}
-	
+
 	@PostMapping("/addUsuario")
-	public int addUsuario(@RequestBody Usuario usuario) {
-		usuariotable.save(usuario);
+	public int agregar(@RequestBody UsuarioDTO datos) {
+		usuariotable.save(datos.aEntidad());
 		return 1;
 	}
-	
+
 	@PostMapping("/updateUsuario")
-	public int updateUsuario(@RequestBody Usuario usuario) {
-		verificador.exigir(usuariotable, usuario.getId_usuario(), "usuario");
-		usuariotable.save(usuario);
+	public int actualizar(@RequestBody UsuarioDTO datos) {
+		verificador.exigir(usuariotable, datos.idUsuario(), "usuario");
+		usuariotable.save(datos.aEntidad());
 		return 1;
 	}
-	
+
 	@DeleteMapping("/deleteUsuario")
-	public int deleteUsuario(@RequestBody Usuario usuario) {
-		verificador.exigir(usuariotable, usuario.getId_usuario(), "usuario");
-		usuariotable.delete(usuario);
+	public int eliminar(@RequestBody UsuarioDTO datos) {
+		verificador.exigir(usuariotable, datos.idUsuario(), "usuario");
+		usuariotable.deleteById(datos.idUsuario());
 		return 1;
 	}
-	
+
 	@PostMapping("/buscarUsuarios")
-	public List<Usuario> getUsuarios(){
-		List<Usuario> listaUsuarios = new ArrayList<>(); 
-		usuariotable.findAll().forEach(listaUsuarios::add);
-		return listaUsuarios;
-	}		
+	public List<Usuario> listar() {
+		List<Usuario> lista = new ArrayList<>();
+		usuariotable.findAll().forEach(lista::add);
+		return lista;
+	}
 }

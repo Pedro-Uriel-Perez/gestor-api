@@ -77,6 +77,6 @@ class ComentariosControllerTest {
 			.andExpect(jsonPath("$.length()").value(2));
 
 		verify(comentariostable, org.mockito.Mockito.times(2)).save(any(Comentarios.class));
-		verify(comentariostable).delete(any(Comentarios.class));
+		verify(comentariostable).deleteById(anyInt());
 	}
 }

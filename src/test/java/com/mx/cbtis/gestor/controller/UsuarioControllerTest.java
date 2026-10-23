@@ -91,7 +91,7 @@ class UsuarioControllerTest {
 			.andExpect(content().string("1"));
 
 		verify(usuariotable, org.mockito.Mockito.times(2)).save(any(Usuario.class));
-		verify(usuariotable).delete(any(Usuario.class));
+		verify(usuariotable).deleteById(anyInt());
 	}
 
 	@Test
@@ -122,6 +122,6 @@ class UsuarioControllerTest {
 			.andExpect(jsonPath("$.detalle").value("Debe indicar el id del usuario"));
 
 		verify(usuariotable, org.mockito.Mockito.never()).save(any(Usuario.class));
-		verify(usuariotable, org.mockito.Mockito.never()).delete(any(Usuario.class));
+		verify(usuariotable, org.mockito.Mockito.never()).deleteById(anyInt());
 	}
 }

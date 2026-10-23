@@ -80,7 +80,7 @@ class TareasControllerTest {
 			.andExpect(jsonPath("$.length()").value(1));
 
 		verify(tareastable, org.mockito.Mockito.times(2)).save(any(Tareas.class));
-		verify(tareastable).delete(any(Tareas.class));
+		verify(tareastable).deleteById(anyInt());
 	}
 
 	@Test

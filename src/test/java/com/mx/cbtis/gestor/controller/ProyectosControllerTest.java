@@ -67,7 +67,7 @@ class ProyectosControllerTest {
 			.andExpect(content().string("1"));
 
 		verify(proyectostable, org.mockito.Mockito.times(2)).save(any(Proyectos.class));
-		verify(proyectostable).delete(any(Proyectos.class));
+		verify(proyectostable).deleteById(anyInt());
 	}
 
 	@Test

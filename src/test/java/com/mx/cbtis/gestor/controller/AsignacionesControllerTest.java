@@ -67,6 +67,6 @@ class AsignacionesControllerTest {
 			.andExpect(jsonPath("$[0].fecha_asignacion").value("2024-06-20"));
 
 		verify(asignacionestable, org.mockito.Mockito.times(2)).save(any(Asignaciones.class));
-		verify(asignacionestable).delete(any(Asignaciones.class));
+		verify(asignacionestable).deleteById(anyInt());
 	}
 }
