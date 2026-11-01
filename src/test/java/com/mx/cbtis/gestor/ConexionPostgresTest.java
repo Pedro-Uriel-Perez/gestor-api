@@ -57,7 +57,8 @@ class ConexionPostgresTest {
 		try (Connection con = dataSource.getConnection()) {
 			assertThat(con.isValid(2)).isTrue();
 			assertThat(con.getMetaData().getDatabaseProductName()).isEqualTo("PostgreSQL");
-			assertThat(con.getCatalog()).isEqualTo("dbgestor");
+			// dbgestor, o dbgestor_ci en el pipeline de base de datos
+			assertThat(con.getCatalog()).startsWith("dbgestor");
 		}
 		assertThat(jdbc.queryForObject("SELECT 1", Integer.class)).isEqualTo(1);
 	}

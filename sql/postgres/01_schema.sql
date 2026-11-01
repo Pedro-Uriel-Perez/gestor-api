@@ -15,52 +15,56 @@ DROP SEQUENCE IF EXISTS hibernate_sequence;
 CREATE SEQUENCE hibernate_sequence START WITH 1 INCREMENT BY 1;
 
 CREATE TABLE usuario (
-  id_usuario         integer PRIMARY KEY DEFAULT nextval('hibernate_sequence'),
-  nombre             varchar(100),
-  correo_electronico varchar(100),
-  contrasena         varchar(100),
-  rol                varchar(100),
-  imagen_usuario     varchar(255)
+    id_usuario INTEGER PRIMARY KEY DEFAULT nextval('hibernate_sequence'),
+    nombre VARCHAR(100),
+    correo_electronico VARCHAR(100),
+    contrasena VARCHAR(100),
+    rol VARCHAR(100),
+    imagen_usuario VARCHAR(255)
 );
 
 CREATE TABLE proyectos (
-  id_proyecto        integer PRIMARY KEY DEFAULT nextval('hibernate_sequence'),
-  nombre             varchar(100),
-  descripcion        varchar(100),
-  fecha_inicio       date,
-  fecha_finalizacion date,
-  estado_proyecto    varchar(100),
-  fondo              varchar(100)
+    id_proyecto INTEGER PRIMARY KEY DEFAULT nextval('hibernate_sequence'),
+    nombre VARCHAR(100),
+    descripcion VARCHAR(100),
+    fecha_inicio DATE,
+    fecha_finalizacion DATE,
+    estado_proyecto VARCHAR(100),
+    fondo VARCHAR(100)
 );
 
+-- Llaves foraneas (el esquema original de MariaDB no las tenia y permitia registros huerfanos).
+-- ON DELETE CASCADE conserva el comportamiento de la API: al borrar un proyecto se borran sus tareas,
+-- y al borrar una tarea, sus comentarios y asignaciones.
 CREATE TABLE tareas (
-  id_tarea          integer PRIMARY KEY DEFAULT nextval('hibernate_sequence'),
-  nombre            varchar(100),
-  descripcion       varchar(100),
-  fecha_vencimiento date,
-  estado            varchar(255),
-  lista             varchar(255),
-  id_proyecto       integer
+    id_tarea INTEGER PRIMARY KEY DEFAULT nextval('hibernate_sequence'),
+    nombre VARCHAR(100),
+    descripcion VARCHAR(100),
+    fecha_vencimiento DATE,
+    estado VARCHAR(255),
+    lista VARCHAR(255),
+    id_proyecto INTEGER REFERENCES proyectos (id_proyecto) ON DELETE CASCADE
 );
 
--- id_usuario guarda el NOMBRE del usuario que comenta (asi lo envia el cliente web)
+-- id_usuario guarda el NOMBRE del usuario que comenta (asi lo envia el cliente web),
+-- por eso no es llave foranea a usuario.
 CREATE TABLE comentarios (
-  id_comentario    integer PRIMARY KEY DEFAULT nextval('hibernate_sequence'),
-  texto_comentario varchar(250),
-  fecha_hora       timestamp,
-  id_usuario       varchar(100),
-  id_tarea         integer
+    id_comentario INTEGER PRIMARY KEY DEFAULT nextval('hibernate_sequence'),
+    texto_comentario VARCHAR(250),
+    fecha_hora TIMESTAMP,
+    id_usuario VARCHAR(100),
+    id_tarea INTEGER REFERENCES tareas (id_tarea) ON DELETE CASCADE
 );
 
 CREATE TABLE asignaciones (
-  id_asignacion    integer PRIMARY KEY DEFAULT nextval('hibernate_sequence'),
-  id_usuario       integer,
-  id_tarea         integer,
-  fecha_asignacion date
+    id_asignacion INTEGER PRIMARY KEY DEFAULT nextval('hibernate_sequence'),
+    id_usuario INTEGER REFERENCES usuario (id_usuario) ON DELETE CASCADE,
+    id_tarea INTEGER REFERENCES tareas (id_tarea) ON DELETE CASCADE,
+    fecha_asignacion DATE
 );
 
--- Mismos indices que el esquema original (alli tampoco habia llaves foraneas)
+-- Indices sobre las llaves foraneas (PostgreSQL no los crea solo)
 CREATE INDEX asignaciones_usuario_fk ON asignaciones (id_usuario);
-CREATE INDEX asignaciones_tareas_fk  ON asignaciones (id_tarea);
-CREATE INDEX tareas_proyecto_idx     ON tareas (id_proyecto);
-CREATE INDEX comentarios_tarea_idx   ON comentarios (id_tarea);
+CREATE INDEX asignaciones_tareas_fk ON asignaciones (id_tarea);
+CREATE INDEX tareas_proyecto_idx ON tareas (id_proyecto);
+CREATE INDEX comentarios_tarea_idx ON comentarios (id_tarea);
