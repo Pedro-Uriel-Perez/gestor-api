@@ -39,7 +39,7 @@ pipeline {
                 // Reglas en .sqlfluff (dialecto postgres). Falla si algún script tiene hallazgos.
                 sh '''
                     sqlfluff lint sql/postgres --format json --write-output sqlfluff-reporte.json || true
-                    sqlfluff lint sql/postgres > sqlfluff-reporte.txt; resultado=$?
+                    sqlfluff lint sql/postgres -v > sqlfluff-reporte.txt; resultado=$?
                     cat sqlfluff-reporte.txt
                     exit $resultado
                 '''
