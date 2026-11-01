@@ -45,7 +45,7 @@ unclassified:
         serverUrl: "http://sonarqube:9000"
         credentialsId: "sonar-token"
 
-# Tres pipelines: backend (gestor-api), frontend (gestor-frontend) y calidad/análisis (gestor-calidad)
+# Tres pipelines: backend (gestor-api), frontend (gestor-frontend) y base de datos (gestor-basedatos)
 jobs:
   - script: >
       pipelineJob('gestor-api') {
@@ -78,8 +78,8 @@ jobs:
         }
       }
   - script: >
-      pipelineJob('gestor-calidad') {
-        description('Calidad y análisis de código de gestor-api y gestor-frontend: pruebas, JaCoCo, SonarQube, Quality Gate y Trivy')
+      pipelineJob('gestor-basedatos') {
+        description('Base de datos PostgreSQL (dbgestor): análisis SQL con SQLFluff, migración, verificación de integridad, pruebas y escaneo de secretos')
         definition {
           cpsScm {
             scm {
@@ -88,7 +88,7 @@ jobs:
                 branch('*/main')
               }
             }
-            scriptPath('jenkins/calidad.Jenkinsfile')
+            scriptPath('jenkins/basedatos.Jenkinsfile')
           }
         }
       }

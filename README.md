@@ -28,7 +28,7 @@ mvnw spring-boot:run
 
 ## Pruebas y cobertura
 ```
-mvnw test        → 33 pruebas (JUnit 5) · reporte en target/site/jacoco/index.html
+mvnw test        → 37 pruebas (JUnit 5) · reporte en target/site/jacoco/index.html
 ```
 Colección de Postman con las pruebas de endpoints: `postman/Gestor_Practica1.postman_collection.json`.
 
@@ -38,6 +38,14 @@ La carpeta `jenkins/` levanta Jenkins en Docker ya configurado (herramientas JDK
 cd jenkins
 docker compose up -d --build
 ```
-Abrir http://localhost:8090 (usuario `admin`, contraseña `admin123`) y ejecutar el job **gestor-api**. El pipeline está en `Jenkinsfile`.
+Abrir http://localhost:8090 (usuario `admin`, contraseña `admin123`). Hay tres pipelines:
+
+| Job | Jenkinsfile | Qué hace |
+|---|---|---|
+| **gestor-api** | `Jenkinsfile` | Compila, pruebas + JaCoCo, SonarQube + Quality Gate, Trivy y empaqueta |
+| **gestor-frontend** | `Jenkinsfile` del repo gestor-frontend | Lo mismo para el frontend |
+| **gestor-basedatos** | `jenkins/basedatos.Jenkinsfile` | Análisis de los scripts SQL con SQLFluff, base limpia, migración, re-ejecución, verificación de integridad (`sql/postgres/05_verificacion_integridad.sql`), pruebas de la API contra la base y escaneo de secretos |
+
+Análisis de los scripts SQL en local: `pip install sqlfluff` y `sqlfluff lint sql/postgres` (reglas en `.sqlfluff`).
 
 Frontend que consume esta API: https://github.com/Pedro-Uriel-Perez/gestor-frontend

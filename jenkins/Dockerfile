@@ -9,9 +9,17 @@ USER root
 RUN curl -fsSL "https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz" \
       | tar -xz -C /opt \
  && ln -s "/opt/apache-maven-${MAVEN_VERSION}" /opt/maven
-# Trivy: escáner de vulnerabilidades (dependencias, secretos y configuración) para el pipeline de calidad
+# Trivy: escáner de vulnerabilidades (dependencias, secretos y configuración)
 RUN curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
       | tar -xz -C /usr/local/bin trivy
+# Pipeline de base de datos: cliente psql para aplicar y verificar los scripts, y SQLFluff para su análisis estático
+ARG SQLFLUFF_VERSION=4.5.0
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends postgresql-client python3 python3-venv \
+ && rm -rf /var/lib/apt/lists/* \
+ && python3 -m venv /opt/sqlfluff \
+ && /opt/sqlfluff/bin/pip install --no-cache-dir "sqlfluff==${SQLFLUFF_VERSION}" \
+ && ln -s /opt/sqlfluff/bin/sqlfluff /usr/local/bin/sqlfluff
 USER jenkins
 
 # Plugins: pipelines, git, reportes de pruebas y cobertura, configuración como código
