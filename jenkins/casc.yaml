@@ -23,7 +23,7 @@ tool:
       - name: "maven-3.9"
         home: "/opt/maven"              # Maven 3.9.11 instalado en el Dockerfile
 
-# Manage Jenkins > Credentials: token de SonarQube (llega desde el archivo .env, no se sube a GitHub)
+# Manage Jenkins > Credentials: los valores llegan desde el archivo .env, que no se sube a GitHub
 credentials:
   system:
     domainCredentials:
@@ -33,6 +33,16 @@ credentials:
               id: "sonar-token"
               description: "Token de SonarQube para Jenkins"
               secret: "${SONAR_TOKEN}"
+          - string:
+              scope: GLOBAL
+              id: "render-api-key"
+              description: "Llave de API de Render (Terraform, despliegues y recolector de logs/métricas)"
+              secret: "${RENDER_API_KEY}"
+          - string:
+              scope: GLOBAL
+              id: "grafana-admin"
+              description: "Contraseña del usuario admin de Grafana"
+              secret: "${GRAFANA_ADMIN_PASSWORD}"
 
 unclassified:
   location:
@@ -45,8 +55,39 @@ unclassified:
         serverUrl: "http://sonarqube:9000"
         credentialsId: "sonar-token"
 
-# Tres pipelines: backend (gestor-api), frontend (gestor-frontend) y base de datos (gestor-basedatos)
+# Pipelines: backend (gestor-api), frontend (gestor-frontend), base de datos (gestor-basedatos),
+# infraestructura en Render (gestor-infra) y pruebas de carga (gestor-rendimiento)
 jobs:
+  - script: >
+      pipelineJob('gestor-infra') {
+        description('Infraestructura como código: Terraform aprovisiona PostgreSQL, API y frontend en Render; Ansible configura la base, verifica los servicios y levanta el monitoreo - https://github.com/Pedro-Uriel-Perez/gestor-infra')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('https://github.com/Pedro-Uriel-Perez/gestor-infra.git') }
+                branch('*/main')
+              }
+            }
+            scriptPath('Jenkinsfile')
+          }
+        }
+      }
+  - script: >
+      pipelineJob('gestor-rendimiento') {
+        description('Prueba de carga controlada con k6 contra la API y el frontend desplegados en Render (latencia p95, throughput y errores)')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote { url('https://github.com/Pedro-Uriel-Perez/gestor-infra.git') }
+                branch('*/main')
+              }
+            }
+            scriptPath('rendimiento/Jenkinsfile')
+          }
+        }
+      }
   - script: >
       pipelineJob('gestor-api') {
         description('API REST (Java 21 / Spring Boot 3) - https://github.com/Pedro-Uriel-Perez/gestor-api')

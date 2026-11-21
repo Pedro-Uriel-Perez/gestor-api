@@ -1,0 +1,9 @@
+target
+.git
+.mvn
+.idea
+.vscode
+jenkins
+postman
+sql
+*.md
