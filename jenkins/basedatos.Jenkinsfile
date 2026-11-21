@@ -16,6 +16,9 @@ pipeline {
         PGUSER = 'postgres'
         PGPASSWORD = 'postgres'
         BD = 'dbgestor_ci'
+        // Caché de Trivy propia de cada job (incidencia INC-09: dos pipelines actualizando la
+        // misma base de Trivy al mismo tiempo provocan SIGSEGV)
+        TRIVY_CACHE_DIR = "/var/jenkins_home/trivy-cache/${env.JOB_NAME}"
         DB_URL = 'jdbc:postgresql://postgres-ci:5432/dbgestor_ci?stringtype=unspecified'
         DB_USER = 'postgres'
         DB_PASSWORD = 'postgres'
