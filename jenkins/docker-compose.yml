@@ -5,6 +5,7 @@
 #   SONAR_TOKEN=...              token de SonarQube
 #   RENDER_API_KEY=rnd_...       llave de API de Render (Terraform, despliegues y recolector de logs)
 #   GRAFANA_ADMIN_PASSWORD=...   contraseña del usuario admin de Grafana
+#   RENDER_OWNER_ID=tea-...      workspace de Render donde Terraform crea los recursos
 services:
   jenkins:
     build: .
@@ -18,6 +19,7 @@ services:
       SONAR_TOKEN: ${SONAR_TOKEN:-}
       RENDER_API_KEY: ${RENDER_API_KEY:-}
       GRAFANA_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+      TF_VAR_render_owner_id: ${RENDER_OWNER_ID:-}
     # El socket de Docker del equipo pertenece a root (grupo 0): Jenkins se agrega a ese grupo
     # para que Ansible levante el stack de monitoreo. Solo es aceptable en el equipo local del
     # administrador, porque da control total sobre Docker.
