@@ -1,0 +1,184 @@
+# Pipeline CI/CD de la API en la nube (GitHub Actions), sustituto de Jenkins:
+# compilar y probar (JUnit + JaCoCo, PostgreSQL de servicio) → SonarQube Cloud + Quality Gate
+# → Trivy (dependencias, secretos y Dockerfile) → Semgrep (SAST) → desplegar en Render.
+# Solo se despliega desde main y si todas las etapas anteriores pasan.
+name: CI/CD gestor-api
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-cd-${{ github.ref }}
+  cancel-in-progress: false
+
+# shell: bash explícito = bash -eo pipefail (un "| tee" no oculta los errores)
+defaults:
+  run:
+    shell: bash
+
+env:
+  TRIVY_VERSION: 0.76.1
+  SEMGREP_VERSION: 1.183.0
+
+jobs:
+  calidad:
+    name: Compilar, pruebas, SonarQube Cloud y Trivy
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: dbgestor
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DB_URL: jdbc:postgresql://localhost:5432/dbgestor?stringtype=unspecified
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0   # SonarQube Cloud usa el historial para distinguir el código nuevo
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Versiones
+        run: |
+          java -version
+          mvn -version
+          psql --version
+
+      - name: Base de datos de pruebas (01_schema.sql y 02_data.sql)
+        run: |
+          psql -d dbgestor -v ON_ERROR_STOP=1 -q -f sql/postgres/01_schema.sql
+          psql -d dbgestor -v ON_ERROR_STOP=1 -q -f sql/postgres/02_data.sql
+
+      - name: Compilar, pruebas (JUnit) y cobertura (JaCoCo)
+        run: mvn -B verify
+
+      - name: Resumen de pruebas y cobertura
+        if: always()
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import csv, glob, xml.etree.ElementTree as ET
+          t = f = e = s = 0
+          for x in glob.glob("target/surefire-reports/TEST-*.xml"):
+              r = ET.parse(x).getroot()
+              t += int(r.get("tests")); f += int(r.get("failures")); e += int(r.get("errors")); s += int(r.get("skipped"))
+          print(f"### Pruebas: {t} ejecutadas · {f} fallas · {e} errores · {s} omitidas")
+          filas = list(csv.DictReader(open("target/site/jacoco/jacoco.csv")))
+          for tipo in ("METHOD", "LINE"):
+              cub = sum(int(r[f"{tipo}_COVERED"]) for r in filas); fal = sum(int(r[f"{tipo}_MISSED"]) for r in filas)
+              print(f"- Cobertura JaCoCo de {'métodos' if tipo == 'METHOD' else 'líneas'}: **{100 * cub / (cub + fal):.1f} %** ({cub}/{cub + fal})")
+          EOF
+
+      - name: Análisis en SonarQube Cloud + Quality Gate
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          mvn -B sonar:sonar
+          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.organization=pedro-uriel-perez
+          -Dsonar.projectKey=Pedro-Uriel-Perez_gestor-api
+          -Dsonar.qualitygate.wait=true
+
+      - name: Escaneo de vulnerabilidades (Trivy, sin target/)
+        run: |
+          curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP" trivy
+          export PATH="$RUNNER_TEMP:$PATH"
+          # --offline-scan usa las dependencias que Maven ya descargó; los hallazgos aceptados están en .trivyignore
+          trivy fs --offline-scan --scanners vuln,secret,misconfig --skip-dirs target --skip-dirs .mvn \
+               --ignorefile .trivyignore --format table --output trivy-gestor-api.txt .
+          cat trivy-gestor-api.txt
+          trivy fs --offline-scan --scanners vuln,secret,misconfig --skip-dirs target --skip-dirs .mvn \
+               --ignorefile .trivyignore --severity HIGH,CRITICAL --exit-code 1 --quiet .
+
+      - name: Guardar reportes (pruebas, JaCoCo y Trivy)
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reportes-gestor-api
+          path: |
+            target/surefire-reports/
+            target/site/jacoco/
+            trivy-gestor-api.txt
+
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Semgrep (Java/Spring, OWASP Top 10, secretos, Dockerfile)
+        # Los hallazgos revisados se justifican en el código con "nosemgrep"; si queda alguno, falla
+        run: |
+          pip install --quiet "semgrep==${SEMGREP_VERSION}"
+          semgrep scan --metrics=off --config p/java --config p/secrets --config p/dockerfile \
+            --config p/owasp-top-ten --config p/security-audit --config p/javascript \
+            --exclude target --text-output=semgrep-gestor-api.txt --sarif-output=semgrep-gestor-api.sarif --error .
+
+      - name: Guardar reporte de Semgrep
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: semgrep-gestor-api
+          path: semgrep-gestor-api.*
+
+  desplegar:
+    name: Desplegar en Render
+    needs: [calidad, sast]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment:
+      name: produccion
+      url: ${{ steps.despliegue.outputs.url }}
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      SERVICIO: gestor-api
+    steps:
+      - name: Desplegar el commit probado y verificar /actuator/health
+        id: despliegue
+        # Render construye la imagen con el Dockerfile de este mismo commit (el auto-deploy está
+        # apagado en Terraform); se espera a que quede live y se comprueba que responda UP.
+        run: |
+          set -euo pipefail
+          API=https://api.render.com/v1
+          AUTH="Authorization: Bearer $RENDER_API_KEY"
+          ID=$(curl -fsS -H "$AUTH" "$API/services?name=$SERVICIO&limit=1" | jq -r '.[0].service.id')
+          URL=$(curl -fsS -H "$AUTH" "$API/services/$ID" | jq -r '.serviceDetails.url')
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          DEPLOY=$(jq -nc --arg c "$GITHUB_SHA" '{commitId: $c}' \
+            | curl -fsS -X POST -H "$AUTH" -H 'Content-Type: application/json' -d @- "$API/services/$ID/deploys" \
+            | jq -r '.id')
+          echo "Despliegue $DEPLOY del commit $GITHUB_SHA en $SERVICIO ($URL)"
+          ESTADO=""
+          for i in $(seq 1 90); do
+            ESTADO=$(curl -fsS -H "$AUTH" "$API/services/$ID/deploys/$DEPLOY" | jq -r '.status')
+            echo "  $(date +%H:%M:%S) $ESTADO"
+            case "$ESTADO" in live) break ;; *failed|canceled|deactivated) exit 1 ;; esac
+            sleep 20
+          done
+          [ "$ESTADO" = live ] || { echo "El despliegue no terminó a tiempo"; exit 1; }
+          curl -fsS --retry 20 --retry-delay 15 --retry-all-errors "$URL/actuator/health"; echo
+          echo "### Desplegado en Render: $URL (commit ${GITHUB_SHA::7}, despliegue $DEPLOY)" >> "$GITHUB_STEP_SUMMARY"
