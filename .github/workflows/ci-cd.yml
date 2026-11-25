@@ -24,7 +24,6 @@ defaults:
 
 env:
   TRIVY_VERSION: 0.76.1
-  SEMGREP_VERSION: 1.183.0
 
 jobs:
   calidad:
@@ -36,7 +35,8 @@ jobs:
         env:
           POSTGRES_DB: dbgestor
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
+          # Contenedor temporal de pruebas, solo accesible desde el runner: sin contraseña escrita
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres"
@@ -45,13 +45,12 @@ jobs:
       DB_URL: jdbc:postgresql://localhost:5432/dbgestor?stringtype=unspecified
       PGHOST: localhost
       PGUSER: postgres
-      PGPASSWORD: postgres
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0   # SonarQube Cloud usa el historial para distinguir el código nuevo
 
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: "21"
@@ -100,7 +99,7 @@ jobs:
 
       - name: Escaneo de vulnerabilidades (Trivy, sin target/)
         run: |
-          curl -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
+          curl --proto '=https' --tlsv1.2 -fsSL "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" \
             | tar -xz -C "$RUNNER_TEMP" trivy
           export PATH="$RUNNER_TEMP:$PATH"
           # --offline-scan usa las dependencias que Maven ya descargó; los hallazgos aceptados están en .trivyignore
@@ -112,7 +111,7 @@ jobs:
 
       - name: Guardar reportes (pruebas, JaCoCo y Trivy)
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: reportes-gestor-api
           path: |
@@ -123,24 +122,22 @@ jobs:
   sast:
     name: SAST (Semgrep)
     runs-on: ubuntu-24.04
+    # Imagen oficial de Semgrep fijada por digest (no se instala nada con pip)
+    container: semgrep/semgrep:1.183.0@sha256:2e45517a85e13a9cca14a2a00df6bb48affd66b8ebfae1b0991cd57578362fb0
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-
-      - name: Semgrep (Java/Spring, OWASP Top 10, secretos, Dockerfile)
+      - name: Semgrep (Java/Spring, OWASP Top 10, secretos, Dockerfile, GitHub Actions)
         # Los hallazgos revisados se justifican en el código con "nosemgrep"; si queda alguno, falla
         run: |
-          pip install --quiet "semgrep==${SEMGREP_VERSION}"
-          semgrep scan --metrics=off --config p/java --config p/secrets --config p/dockerfile \
-            --config p/owasp-top-ten --config p/security-audit --config p/javascript \
+          semgrep --version
+          semgrep scan --metrics=off --config p/java --config p/secrets --config p/dockerfile 
+            --config p/owasp-top-ten --config p/security-audit --config p/javascript 
             --exclude target --text-output=semgrep-gestor-api.txt --sarif-output=semgrep-gestor-api.sarif --error .
 
       - name: Guardar reporte de Semgrep
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: semgrep-gestor-api
           path: semgrep-gestor-api.*
@@ -165,20 +162,20 @@ jobs:
           set -euo pipefail
           API=https://api.render.com/v1
           AUTH="Authorization: Bearer $RENDER_API_KEY"
-          ID=$(curl -fsS -H "$AUTH" "$API/services?name=$SERVICIO&limit=1" | jq -r '.[0].service.id')
-          URL=$(curl -fsS -H "$AUTH" "$API/services/$ID" | jq -r '.serviceDetails.url')
+          ID=$(curl --proto '=https' --tlsv1.2 -fsS -H "$AUTH" "$API/services?name=$SERVICIO&limit=1" | jq -r '.[0].service.id')
+          URL=$(curl --proto '=https' --tlsv1.2 -fsS -H "$AUTH" "$API/services/$ID" | jq -r '.serviceDetails.url')
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           DEPLOY=$(jq -nc --arg c "$GITHUB_SHA" '{commitId: $c}' \
-            | curl -fsS -X POST -H "$AUTH" -H 'Content-Type: application/json' -d @- "$API/services/$ID/deploys" \
+            | curl --proto '=https' --tlsv1.2 -fsS -X POST -H "$AUTH" -H 'Content-Type: application/json' -d @- "$API/services/$ID/deploys" \
             | jq -r '.id')
           echo "Despliegue $DEPLOY del commit $GITHUB_SHA en $SERVICIO ($URL)"
           ESTADO=""
           for i in $(seq 1 90); do
-            ESTADO=$(curl -fsS -H "$AUTH" "$API/services/$ID/deploys/$DEPLOY" | jq -r '.status')
+            ESTADO=$(curl --proto '=https' --tlsv1.2 -fsS -H "$AUTH" "$API/services/$ID/deploys/$DEPLOY" | jq -r '.status')
             echo "  $(date +%H:%M:%S) $ESTADO"
             case "$ESTADO" in live) break ;; *failed|canceled|deactivated) exit 1 ;; esac
             sleep 20
           done
           [ "$ESTADO" = live ] || { echo "El despliegue no terminó a tiempo"; exit 1; }
-          curl -fsS --retry 20 --retry-delay 15 --retry-all-errors "$URL/actuator/health"; echo
+          curl --proto '=https' --tlsv1.2 -fsS --retry 20 --retry-delay 15 --retry-all-errors "$URL/actuator/health"; echo
           echo "### Desplegado en Render: $URL (commit ${GITHUB_SHA::7}, despliegue $DEPLOY)" >> "$GITHUB_STEP_SUMMARY"
