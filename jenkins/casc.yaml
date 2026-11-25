@@ -55,39 +55,10 @@ unclassified:
         serverUrl: "http://sonarqube:9000"
         credentialsId: "sonar-token"
 
-# Pipelines: backend (gestor-api), frontend (gestor-frontend), base de datos (gestor-basedatos),
-# infraestructura en Render (gestor-infra) y pruebas de carga (gestor-rendimiento)
+# Pipelines locales: backend (gestor-api), frontend (gestor-frontend) y base de datos (gestor-basedatos).
+# La versión en la nube de estos pipelines, más la infraestructura (Terraform + Ansible) y las pruebas
+# de carga (k6), corre en GitHub Actions (carpeta .github/workflows de cada repositorio).
 jobs:
-  - script: >
-      pipelineJob('gestor-infra') {
-        description('Infraestructura como código: Terraform aprovisiona PostgreSQL, API y frontend en Render; Ansible configura la base, verifica los servicios y levanta el monitoreo - https://github.com/Pedro-Uriel-Perez/gestor-infra')
-        definition {
-          cpsScm {
-            scm {
-              git {
-                remote { url('https://github.com/Pedro-Uriel-Perez/gestor-infra.git') }
-                branch('*/main')
-              }
-            }
-            scriptPath('Jenkinsfile')
-          }
-        }
-      }
-  - script: >
-      pipelineJob('gestor-rendimiento') {
-        description('Prueba de carga controlada con k6 contra la API y el frontend desplegados en Render (latencia p95, throughput y errores)')
-        definition {
-          cpsScm {
-            scm {
-              git {
-                remote { url('https://github.com/Pedro-Uriel-Perez/gestor-infra.git') }
-                branch('*/main')
-              }
-            }
-            scriptPath('rendimiento/Jenkinsfile')
-          }
-        }
-      }
   - script: >
       pipelineJob('gestor-api') {
         description('API REST (Java 21 / Spring Boot 3) - https://github.com/Pedro-Uriel-Perez/gestor-api')
