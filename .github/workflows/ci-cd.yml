@@ -131,8 +131,8 @@ jobs:
         # Los hallazgos revisados se justifican en el código con "nosemgrep"; si queda alguno, falla
         run: |
           semgrep --version
-          semgrep scan --metrics=off --config p/java --config p/secrets --config p/dockerfile 
-            --config p/owasp-top-ten --config p/security-audit --config p/javascript 
+          semgrep scan --metrics=off --config p/java --config p/secrets --config p/dockerfile \
+            --config p/owasp-top-ten --config p/security-audit --config p/javascript \
             --exclude target --text-output=semgrep-gestor-api.txt --sarif-output=semgrep-gestor-api.sarif --error .
 
       - name: Guardar reporte de Semgrep
